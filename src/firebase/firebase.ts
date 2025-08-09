@@ -86,4 +86,12 @@ export const storage = new Proxy({} as FirebaseStorage, {
   }
 }) as FirebaseStorage;
 
+export function isFirebaseReady(): boolean {
+  return Boolean(dbInternal);
+}
+
+export function getDbOptional(): Firestore | null {
+  return dbInternal;
+}
+
 export { app, auth };

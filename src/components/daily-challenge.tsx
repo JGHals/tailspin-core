@@ -13,6 +13,7 @@ import { PowerUpBar, type PowerUpType } from "@/components/power-up-bar"
 import { DailyChallengeComplete } from "@/components/daily-challenge-complete"
 import { validateWord, checkWordConnection } from "@/validation/word-validation"
 import { GameModeManagerImpl } from "@/game/game-mode-manager"
+import { getDbOptional } from "@/firebase/firebase"
 import { AlertCircle, Trophy } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -44,6 +45,10 @@ export function DailyChallenge() {
   useEffect(() => {
     // Initialize using engine daily puzzle service
     const init = async () => {
+      if (!getDbOptional()) {
+        console.warn('[DailyChallenge] Firebase not ready; skipping init for now')
+        return
+      }
       const manager = new GameModeManagerImpl('daily')
       if (user) manager.setUserId(user.id)
       const puzzle = await manager.getCurrentDailyPuzzle()
