@@ -1,7 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -32,14 +32,14 @@ const isBrowser = typeof window !== 'undefined';
 
 let app: ReturnType<typeof getApp> | null = null;
 let auth: any = null;
-let db: ReturnType<typeof getFirestore> | null = null;
-let storage: ReturnType<typeof getStorage> | null = null;
+let dbInternal: Firestore | null = null;
+let storageInternal: FirebaseStorage | null = null;
 
 try {
   if (hasRequiredClientConfig()) {
     app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    storage = getStorage(app);
+    dbInternal = getFirestore(app);
+    storageInternal = getStorage(app);
     if (isBrowser) {
       auth = getAuth(app);
       setPersistence(auth, browserLocalPersistence).catch((error) => {
@@ -63,4 +63,27 @@ try {
   console.error('[Firebase] Initialization error:', err);
 }
 
-export { app, auth, db, storage };
+// Proxies provide a stable, typed export that throws if used before initialization
+export const db = new Proxy({} as Firestore, {
+  get(_target, prop, receiver) {
+    if (!dbInternal) {
+      throw new Error('[Firebase] Firestore not initialized');
+    }
+    // @ts-ignore
+    const value = dbInternal[prop as keyof Firestore];
+    return typeof value === 'function' ? (value as Function).bind(dbInternal) : value;
+  }
+}) as Firestore;
+
+export const storage = new Proxy({} as FirebaseStorage, {
+  get(_target, prop, receiver) {
+    if (!storageInternal) {
+      throw new Error('[Firebase] Storage not initialized');
+    }
+    // @ts-ignore
+    const value = storageInternal[prop as keyof FirebaseStorage];
+    return typeof value === 'function' ? (value as Function).bind(storageInternal) : value;
+  }
+}) as FirebaseStorage;
+
+export { app, auth };

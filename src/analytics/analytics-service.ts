@@ -1,4 +1,5 @@
 import { db } from '../firebase/firebase';
+import type { Firestore } from 'firebase/firestore';
 import { 
   doc, 
   updateDoc, 
@@ -204,6 +205,14 @@ class AnalyticsService {
   }
 
   async trackGameCompletion(gameResult: GameResult, userId: string) {
+    const database: Firestore | null = db as Firestore | null;
+    if (!database) {
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.warn('[Analytics] Firestore not initialized; skipping trackGameCompletion for user:', userId);
+      }
+      return;
+    }
     // Get path analysis for the chain
     const pathAnalysis = await chainValidator.analyzePath(gameResult.chain);
     
@@ -254,14 +263,14 @@ class AnalyticsService {
 
     await withRetry(async () => {
       // Add analytics record
-      await addDoc(collection(db, 'game_analytics'), {
+      await addDoc(collection(database, 'game_analytics'), {
         ...analytics,
         timestamp: Timestamp.fromDate(analytics.timestamp)
       });
 
       // Update user stats with atomic operations
-      const userRef = doc(db, 'users', userId);
-      await runTransaction(db, async (transaction) => {
+      const userRef = doc(database, 'users', userId);
+      await runTransaction(database, async (transaction) => {
         const userDoc = await transaction.get(userRef);
         if (!userDoc.exists()) return;
 
@@ -307,7 +316,11 @@ class AnalyticsService {
   }
 
   async getPlayerInsights(userId: string, dateRange?: { start: Date; end: Date }): Promise<PlayerInsights> {
-    const analyticsRef = collection(db, 'game_analytics');
+    const database: Firestore | null = db as Firestore | null;
+    if (!database) {
+      throw new Error('[Analytics] Firestore not initialized');
+    }
+    const analyticsRef = collection(database, 'game_analytics');
     const constraints = [
       where('userId', '==', userId),
       orderBy('timestamp', 'desc')
@@ -394,7 +407,15 @@ class AnalyticsService {
   }
 
   async queryAnalytics(queryParams: AnalyticsQuery): Promise<GameAnalytics[]> {
-    const analyticsRef = collection(db, 'game_analytics');
+    const database: Firestore | null = db as Firestore | null;
+    if (!database) {
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.warn('[Analytics] Firestore not initialized; returning empty analytics for query');
+      }
+      return [];
+    }
+    const analyticsRef = collection(database, 'game_analytics');
     const constraints: any[] = [];
 
     if (queryParams.gameMode) {
@@ -450,7 +471,7 @@ class AnalyticsService {
     try {
       await withRetry(async () => {
         const batch = metrics.map(metric => 
-          addDoc(collection(db, 'performance_metrics'), {
+          addDoc(collection((db as Firestore | null) as Firestore, 'performance_metrics'), {
             ...metric,
             timestamp: Timestamp.now()
           })

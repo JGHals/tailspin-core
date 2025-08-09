@@ -1,4 +1,5 @@
 import { db } from '../firebase/firebase';
+import type { Firestore } from 'firebase/firestore';
 import {
   collection,
   doc,
@@ -53,15 +54,23 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
   private initialized: boolean = false;
 
   private getChunkRef(prefix: string, chunkIndex: number) {
+    const database: Firestore | null = db as Firestore | null;
+    if (!database) {
+      throw new Error('[Dictionary] Firestore not initialized');
+    }
     return doc(
-      collection(db, FIREBASE_CONFIG.COLLECTIONS.PREFIXES),
+      collection(database, FIREBASE_CONFIG.COLLECTIONS.PREFIXES),
       `${prefix}_${chunkIndex}`
     );
   }
 
   private getMetadataRef() {
+    const database: Firestore | null = db as Firestore | null;
+    if (!database) {
+      throw new Error('[Dictionary] Firestore not initialized');
+    }
     return doc(
-      collection(db, FIREBASE_CONFIG.COLLECTIONS.METADATA),
+      collection(database, FIREBASE_CONFIG.COLLECTIONS.METADATA),
       FIREBASE_CONFIG.METADATA_DOC
     );
   }
@@ -86,7 +95,11 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
     }
 
     // Query all chunks for this prefix
-    const prefixRef = collection(db, FIREBASE_CONFIG.COLLECTIONS.PREFIXES);
+    const database: Firestore | null = db as Firestore | null;
+    if (!database) {
+      return [];
+    }
+    const prefixRef = collection(database, FIREBASE_CONFIG.COLLECTIONS.PREFIXES);
     const chunks = await getDocs(
       query(
         prefixRef,
@@ -128,9 +141,13 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
     }
 
     // Use batched writes for chunks
+    const database: Firestore | null = db as Firestore | null;
+    if (!database) {
+      throw new Error('[Dictionary] Firestore not initialized');
+    }
     const batches: Array<Promise<void>> = [];
     for (let i = 0; i < chunks.length; i += FIREBASE_CONFIG.BATCH_SIZE) {
-      const batch = writeBatch(db);
+      const batch = writeBatch(database);
       const batchChunks = chunks.slice(i, i + FIREBASE_CONFIG.BATCH_SIZE);
 
       batchChunks.forEach(chunk => {
@@ -142,7 +159,7 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
     }
 
     // Update metadata in transaction
-    await runTransaction(db, async transaction => {
+    await runTransaction(database, async transaction => {
       const metadata = await this.loadMetadata();
       
       metadata.prefixCounts[prefix] = words.length;
@@ -161,7 +178,11 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
   }
 
   async getWordsByLength(prefix: string, minLength: number, maxLength: number): Promise<string[]> {
-    const prefixRef = collection(db, FIREBASE_CONFIG.COLLECTIONS.PREFIXES);
+    const database: Firestore | null = db as Firestore | null;
+    if (!database) {
+      return [];
+    }
+    const prefixRef = collection(database, FIREBASE_CONFIG.COLLECTIONS.PREFIXES);
     const chunks = await getDocs(
       query(
         prefixRef,

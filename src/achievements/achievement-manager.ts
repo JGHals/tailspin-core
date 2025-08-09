@@ -1,5 +1,5 @@
 import { db } from '../firebase/firebase';
-import { doc, updateDoc, arrayUnion, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { type Firestore, doc, updateDoc, arrayUnion, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { withRetry } from '../utils/retry';
 import type { GameResult } from '../types/game';
 import { toast } from 'sonner';
@@ -152,7 +152,15 @@ class AchievementManager {
 
   private async getUserAchievements(userId: string): Promise<Achievement[]> {
     try {
-      const userAchievementsRef = doc(db, 'users', userId, 'achievements', 'data');
+      const database: Firestore | null = db;
+      if (!database) {
+        if (process.env.NODE_ENV !== 'production') {
+          // eslint-disable-next-line no-console
+          console.warn('[Achievements] Firestore not initialized; returning empty achievements for user:', userId);
+        }
+        return [];
+      }
+      const userAchievementsRef = doc(database, 'users', userId, 'achievements', 'data');
       const snapshot = await getDoc(userAchievementsRef);
       
       if (!snapshot.exists()) {
@@ -178,7 +186,15 @@ class AchievementManager {
     progress: number,
     completed: boolean
   ) {
-    const userAchievementsRef = doc(db, 'users', userId, 'achievements', 'data');
+    const database: Firestore | null = db;
+    if (!database) {
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.warn('[Achievements] Firestore not initialized; skipping achievement update for user:', userId);
+      }
+      return;
+    }
+    const userAchievementsRef = doc(database, 'users', userId, 'achievements', 'data');
     
     await withRetry(async () => {
       await updateDoc(userAchievementsRef, {
@@ -191,7 +207,7 @@ class AchievementManager {
         const achievement = this.achievements.find(a => a.id === achievementId);
         if (achievement) {
           // Update user tokens
-          const userRef = doc(db, 'users', userId);
+          const userRef = doc(database, 'users', userId);
           await updateDoc(userRef, {
             tokens: arrayUnion(achievement.reward)
           });

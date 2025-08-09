@@ -30,7 +30,7 @@
  */
 
 import { GameState } from '../types/game';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { app } from '../firebase/firebase';
 
@@ -39,10 +39,13 @@ export class GamePersistenceService {
   private lastSaveTime: number = 0;
   private autoSaveTimer: NodeJS.Timeout | null = null;
   private userId: string;
-  private db: ReturnType<typeof getFirestore>;
+  private db: Firestore;
 
   constructor(userId: string) {
     this.userId = userId;
+    if (!app) {
+      throw new Error('[Persistence] Firebase app not initialized');
+    }
     this.db = getFirestore(app);
   }
 
