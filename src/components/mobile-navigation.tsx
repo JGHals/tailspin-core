@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { User, Trophy, LogOut, LogIn, UserPlus } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/contexts/AuthContext"
 import { GameInfo } from "@/components/game-info"
 
 export function MobileNavigation() {

@@ -13,7 +13,7 @@ import { HintModal } from "@/components/hint-modal"
 import { validateWord, checkWordConnection } from "@/validation/word-validation"
 import { GameModeManagerImpl } from "@/game/game-mode-manager"
 import { AlertCircle, RefreshCw } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/contexts/AuthContext"
 
 export function EndlessMode() {
   const { user, addTokens } = useAuth()

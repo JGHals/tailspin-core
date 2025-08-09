@@ -4,7 +4,7 @@ import type React from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Info, Lightbulb, Wand2, FlipHorizontal, BracketsIcon, Undo, Coins } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/contexts/AuthContext"
 
 export type PowerUpType = "hint" | "undo" | "warp" | "flip" | "bridge"
 

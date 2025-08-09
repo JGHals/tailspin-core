@@ -14,7 +14,7 @@ import { DailyChallengeComplete } from "@/components/daily-challenge-complete"
 import { validateWord, checkWordConnection } from "@/validation/word-validation"
 import { GameModeManagerImpl } from "@/game/game-mode-manager"
 import { AlertCircle, Trophy } from "lucide-react"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/contexts/AuthContext"
 
 export function DailyChallenge() {
   const { user, addTokens } = useAuth()

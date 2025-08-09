@@ -10,7 +10,7 @@ import { PowerUpBar, type PowerUpType } from "@/components/power-up-bar"
 import { validateWord, checkWordConnection } from "@/lib/game-utils"
 import { AlertCircle, Users } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/contexts/AuthContext"
 import { WordWarpGrid } from "@/components/word-warp-grid"
 import { HintModal } from "@/components/hint-modal"
 
