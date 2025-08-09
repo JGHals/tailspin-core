@@ -1,20 +1,8 @@
-import { db } from '../firebase/firebase';
 import type { Firestore } from 'firebase/firestore';
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  writeBatch,
-  runTransaction,
-  DocumentData,
-  orderBy,
-  limit
-} from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where, writeBatch, runTransaction, orderBy } from 'firebase/firestore';
 import { FIREBASE_CONFIG, DICTIONARY_CONFIG } from './constants';
 import type { DictionaryAccess, DictionaryMetadata, CacheAnalytics, DictionaryOperations } from './types';
+import type { FirestoreProvider, QueryConstraint } from '@/services/firestore-provider';
 
 interface WordChunk {
   words: string[];
@@ -52,39 +40,53 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
   private metadata: DictionaryMetadata | null = null;
   private chunkCache: Map<string, WordChunk[]> = new Map();
   private initialized: boolean = false;
+  private provider: FirestoreProvider | null;
 
-  private getChunkRef(prefix: string, chunkIndex: number) {
-    const database: Firestore | null = db as Firestore | null;
-    if (!database) {
-      throw new Error('[Dictionary] Firestore not initialized');
-    }
-    return doc(
-      collection(database, FIREBASE_CONFIG.COLLECTIONS.PREFIXES),
-      `${prefix}_${chunkIndex}`
-    );
+  // Global override usable from server/API to force admin provider
+  private static providerOverride: FirestoreProvider | null = null;
+
+  static setProviderOverride(provider: FirestoreProvider | null) {
+    FirebaseDictionaryOptimized.providerOverride = provider;
   }
 
-  private getMetadataRef() {
-    const database: Firestore | null = db as Firestore | null;
-    if (!database) {
-      throw new Error('[Dictionary] Firestore not initialized');
+  constructor(provider?: FirestoreProvider | null) {
+    this.provider = provider ?? null;
+  }
+
+  private get activeProvider(): FirestoreProvider | null {
+    return this.provider ?? FirebaseDictionaryOptimized.providerOverride ?? null;
+  }
+
+  private async getClientDb(): Promise<Firestore | null> {
+    if (typeof window === 'undefined') return null;
+    const mod = await import('../firebase/firebase');
+    return (mod.db as Firestore | null) ?? null;
+  }
+
+  // Helper to read metadata via provider or client db
+  private async getMetadata(): Promise<DictionaryMetadata> {
+    if (this.metadata) return this.metadata;
+    const provider = this.activeProvider;
+    if (provider) {
+      const data = await provider.getDocument<DictionaryMetadata>(
+        FIREBASE_CONFIG.COLLECTIONS.METADATA,
+        FIREBASE_CONFIG.METADATA_DOC
+      );
+      if (!data) throw new Error('Dictionary metadata not found');
+      this.metadata = data;
+      return data;
     }
-    return doc(
-      collection(database, FIREBASE_CONFIG.COLLECTIONS.METADATA),
-      FIREBASE_CONFIG.METADATA_DOC
-    );
+    const database = await this.getClientDb();
+    if (!database) throw new Error('[Dictionary] Firestore not initialized');
+    const ref = doc(collection(database, FIREBASE_CONFIG.COLLECTIONS.METADATA), FIREBASE_CONFIG.METADATA_DOC);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error('Dictionary metadata not found');
+    this.metadata = snap.data() as DictionaryMetadata;
+    return this.metadata;
   }
 
   private async loadMetadata(): Promise<DictionaryMetadata> {
-    if (this.metadata) return this.metadata;
-
-    const metadataDoc = await getDoc(this.getMetadataRef());
-    if (!metadataDoc.exists()) {
-      throw new Error('Dictionary metadata not found');
-    }
-
-    this.metadata = metadataDoc.data() as DictionaryMetadata;
-    return this.metadata;
+    return this.getMetadata();
   }
 
   async getWords(prefix: string): Promise<string[]> {
@@ -94,28 +96,25 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
       return cached.flatMap(chunk => chunk.words);
     }
 
-    // Query all chunks for this prefix
-    const database: Firestore | null = db as Firestore | null;
-    if (!database) {
-      return [];
+    const provider = this.activeProvider;
+    let wordChunks: WordChunk[] = [];
+    if (provider) {
+      const constraints: QueryConstraint[] = [
+        { type: 'where', field: 'prefix', operator: '==', value: prefix },
+        { type: 'orderBy', field: 'chunkIndex', direction: 'asc' }
+      ];
+      const docs = await provider.queryCollection<WordChunk>(FIREBASE_CONFIG.COLLECTIONS.PREFIXES, constraints);
+      wordChunks = docs;
+    } else {
+      const database = await this.getClientDb();
+      if (!database) return [];
+      const prefixRef = collection(database, FIREBASE_CONFIG.COLLECTIONS.PREFIXES);
+      const chunks = await getDocs(query(prefixRef, where('prefix', '==', prefix), orderBy('chunkIndex')));
+      if (chunks.empty) return [];
+      chunks.forEach(d => {
+        wordChunks.push(d.data() as WordChunk);
+      });
     }
-    const prefixRef = collection(database, FIREBASE_CONFIG.COLLECTIONS.PREFIXES);
-    const chunks = await getDocs(
-      query(
-        prefixRef,
-        where('prefix', '==', prefix),
-        orderBy('chunkIndex')
-      )
-    );
-
-    if (chunks.empty) return [];
-
-    // Process and cache chunks
-    const wordChunks: WordChunk[] = [];
-    chunks.forEach(doc => {
-      const chunk = doc.data() as WordChunk;
-      wordChunks.push(chunk);
-    });
 
     this.chunkCache.set(prefix, wordChunks);
     return wordChunks.flatMap(chunk => chunk.words);
@@ -140,69 +139,92 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
       });
     }
 
-    // Use batched writes for chunks
-    const database: Firestore | null = db as Firestore | null;
-    if (!database) {
-      throw new Error('[Dictionary] Firestore not initialized');
-    }
-    const batches: Array<Promise<void>> = [];
-    for (let i = 0; i < chunks.length; i += FIREBASE_CONFIG.BATCH_SIZE) {
-      const batch = writeBatch(database);
-      const batchChunks = chunks.slice(i, i + FIREBASE_CONFIG.BATCH_SIZE);
+    const provider = this.activeProvider;
+    if (provider) {
+      // Batch write chunks
+      const ops = chunks.map(chunk => ({
+        type: 'set' as const,
+        collectionPath: FIREBASE_CONFIG.COLLECTIONS.PREFIXES,
+        docId: `${prefix}_${chunk.chunkIndex}`,
+        data: chunk
+      }));
+      await provider.writeBatch(ops);
 
-      batchChunks.forEach(chunk => {
-        const chunkRef = this.getChunkRef(prefix, chunk.chunkIndex);
-        batch.set(chunkRef, chunk);
+      // Transaction to update metadata
+      await provider.runTransaction<void>(async (tx) => {
+        const meta = (await tx.get<DictionaryMetadata>(
+          FIREBASE_CONFIG.COLLECTIONS.METADATA,
+          FIREBASE_CONFIG.METADATA_DOC
+        ))!;
+        const metadata = meta ?? {
+          prefixCounts: {}, lastUpdated: new Date().toISOString(), totalWords: 0
+        } as any as DictionaryMetadata;
+        metadata.prefixCounts[prefix] = words.length;
+        metadata.lastUpdated = new Date().toISOString();
+        metadata.totalWords = Object.values(metadata.prefixCounts).reduce((s: number, c: number) => s + (c as number), 0);
+        await tx.set(FIREBASE_CONFIG.COLLECTIONS.METADATA, FIREBASE_CONFIG.METADATA_DOC, metadata);
       });
-
-      batches.push(batch.commit());
+    } else {
+      const database = await this.getClientDb();
+      if (!database) throw new Error('[Dictionary] Firestore not initialized');
+      const batches: Array<Promise<void>> = [];
+      for (let i = 0; i < chunks.length; i += FIREBASE_CONFIG.BATCH_SIZE) {
+        const batch = writeBatch(database);
+        const batchChunks = chunks.slice(i, i + FIREBASE_CONFIG.BATCH_SIZE);
+        batchChunks.forEach(chunk => {
+          const chunkRef = doc(collection(database, FIREBASE_CONFIG.COLLECTIONS.PREFIXES), `${prefix}_${chunk.chunkIndex}`);
+          batch.set(chunkRef, chunk);
+        });
+        batches.push(batch.commit());
+      }
+      await runTransaction(database, async (transaction) => {
+        const metaRef = doc(collection(database, FIREBASE_CONFIG.COLLECTIONS.METADATA), FIREBASE_CONFIG.METADATA_DOC);
+        const snap = await transaction.get(metaRef as any);
+        const metadata = (snap?.exists() ? snap.data() : { prefixCounts: {}, totalWords: 0 }) as DictionaryMetadata;
+        metadata.prefixCounts[prefix] = words.length;
+        metadata.lastUpdated = new Date().toISOString();
+        metadata.totalWords = Object.values(metadata.prefixCounts).reduce((s: number, c: number) => s + (c as number), 0);
+        transaction.set(metaRef as any, metadata as any);
+      });
+      await Promise.all(batches);
     }
-
-    // Update metadata in transaction
-    await runTransaction(database, async transaction => {
-      const metadata = await this.loadMetadata();
-      
-      metadata.prefixCounts[prefix] = words.length;
-      metadata.lastUpdated = new Date().toISOString();
-      metadata.totalWords = Object.values(metadata.prefixCounts)
-        .reduce((sum: number, count: number) => sum + count, 0);
-
-      transaction.set(this.getMetadataRef(), metadata);
-    });
-
-    // Wait for all batches to complete
-    await Promise.all(batches);
     
     // Update cache
     this.chunkCache.set(prefix, chunks);
   }
 
   async getWordsByLength(prefix: string, minLength: number, maxLength: number): Promise<string[]> {
-    const database: Firestore | null = db as Firestore | null;
-    if (!database) {
-      return [];
+    const provider = this.activeProvider;
+    if (provider) {
+      const constraints: QueryConstraint[] = [
+        { type: 'where', field: 'prefix', operator: '==', value: prefix },
+        { type: 'where', field: 'minLength', operator: '<=', value: maxLength },
+        { type: 'where', field: 'maxLength', operator: '>=', value: minLength },
+      ];
+      const docs = await provider.queryCollection<WordChunk>(FIREBASE_CONFIG.COLLECTIONS.PREFIXES, constraints);
+      return docs
+        .flatMap(c => c.words)
+        .filter(w => w.length >= minLength && w.length <= maxLength);
+    } else {
+      const database = await this.getClientDb();
+      if (!database) return [];
+      const prefixRef = collection(database, FIREBASE_CONFIG.COLLECTIONS.PREFIXES);
+      const chunks = await getDocs(
+        query(
+          prefixRef,
+          where('prefix', '==', prefix),
+          where('minLength', '<=', maxLength),
+          where('maxLength', '>=', minLength)
+        )
+      );
+      if (chunks.empty) return [];
+      const words: string[] = [];
+      chunks.forEach(d => {
+        const chunk = d.data() as WordChunk;
+        words.push(...chunk.words.filter(w => w.length >= minLength && w.length <= maxLength));
+      });
+      return words;
     }
-    const prefixRef = collection(database, FIREBASE_CONFIG.COLLECTIONS.PREFIXES);
-    const chunks = await getDocs(
-      query(
-        prefixRef,
-        where('prefix', '==', prefix),
-        where('minLength', '<=', maxLength),
-        where('maxLength', '>=', minLength)
-      )
-    );
-
-    if (chunks.empty) return [];
-
-    const words: string[] = [];
-    chunks.forEach(doc => {
-      const chunk = doc.data() as WordChunk;
-      words.push(...chunk.words.filter(w => 
-        w.length >= minLength && w.length <= maxLength
-      ));
-    });
-
-    return words;
   }
 
   async getPopularPrefixes(limit: number = 10): Promise<Array<{ prefix: string; count: number }>> {

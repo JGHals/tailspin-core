@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dailyPuzzleGenerator } from '@/game/daily-puzzle-generator';
-import { db } from '@/firebase/firebase';
+import { DailyPuzzleGenerator } from '@/game/daily-puzzle-generator';
+import { adminDb } from '@/firebase/admin';
+import { AdminFirestoreProvider } from '@/services/firestore-provider';
+import { setDictionaryProvider } from '@/dictionary/dictionary-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,20 +20,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    // NOTE: The current DailyPuzzleGenerator depends on client Firestore (db)
-    // which is not initialized on the server. Guard here to avoid runtime errors.
-    if (!db) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            'Firestore client is not initialized in server runtime. Use an Admin SDK-backed generator or trigger generation from a client page.',
-          hint:
-            'Implement server-side generation using Firebase Admin SDK in a separate generator or run this endpoint from a browser-only admin tool.',
-        },
-        { status: 500 }
-      );
-    }
+    // Ensure Admin SDK is available
+    const provider = new AdminFirestoreProvider(adminDb);
+    // Ensure dictionary uses admin provider during generation
+    setDictionaryProvider(provider);
 
     const body = (await request.json().catch(() => ({}))) as {
       startDate?: string;
@@ -60,8 +52,17 @@ export async function POST(request: NextRequest) {
       const dateStr = targetDate.toISOString().split('T')[0];
 
       try {
-        // TODO: If force === false, consider checking for existing doc first
-        const puzzle = await dailyPuzzleGenerator.generateDailyPuzzle(dateStr);
+        // If not forcing, skip if already exists
+        if (!force) {
+          const exists = await provider.documentExists('daily_puzzles', dateStr);
+          if (exists) {
+            results.push({ date: dateStr, status: 'success' });
+            continue;
+          }
+        }
+
+        const generator = new DailyPuzzleGenerator(provider);
+        const puzzle = await generator.generateDailyPuzzle(dateStr);
         results.push({
           date: dateStr,
           status: 'success',
@@ -93,6 +94,8 @@ export async function POST(request: NextRequest) {
       results,
     });
   } catch (error: any) {
+    // Cleanup provider override to avoid accidental reuse
+    setDictionaryProvider(null);
     return NextResponse.json(
       {
         success: false,

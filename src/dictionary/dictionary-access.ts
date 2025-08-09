@@ -57,4 +57,9 @@ import { FirebaseDictionaryOptimized } from './firebase-dictionary';
  * Singleton access point for the Firebase dictionary implementation.
  * This is the primary dictionary service used for game operations.
  */
-export const dictionaryAccess = new FirebaseDictionaryOptimized(); 
+export const dictionaryAccess = new FirebaseDictionaryOptimized();
+
+// Helper to inject a provider at runtime (e.g., in server/API routes)
+export function setDictionaryProvider(provider: import('@/services/firestore-provider').FirestoreProvider | null) {
+  FirebaseDictionaryOptimized.setProviderOverride(provider);
+}

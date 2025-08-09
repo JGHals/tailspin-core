@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { dailyPuzzleService } from '@/lib/game/daily-puzzle-service';
+import { dailyPuzzleService } from '@/game/daily-puzzle-service';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   try {

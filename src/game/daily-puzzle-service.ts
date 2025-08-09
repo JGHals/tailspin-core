@@ -1,9 +1,9 @@
-import { db } from '../firebase/firebase';
 import { collection, doc, getDoc, setDoc, query, where, getDocs, limit } from 'firebase/firestore';
-import { dailyPuzzleGenerator } from './daily-puzzle-generator';
+import { DailyPuzzleGenerator } from './daily-puzzle-generator';
 import type { DailyPuzzle } from './game-mode-manager';
 import { startupService } from '../services/startup-service';
 import { UnifiedCache } from '../dictionary/unified-cache';
+import type { FirestoreProvider } from '@/services/firestore-provider';
 
 const CACHE_KEYS = {
   PUZZLE: 'puzzle',
@@ -68,8 +68,29 @@ export class DailyPuzzleService {
     return puzzle;
   }
 
+  constructor(private provider?: FirestoreProvider | null) {
+    this.puzzleCache = UnifiedCache.getInstance<DailyPuzzle>({
+      maxEntries: 10,
+      ttl: 24 * 60 * 60 * 1000,
+      namespace: 'dailyPuzzles'
+    });
+    this.historyCache = UnifiedCache.getInstance<PuzzleHistoryResult>({
+      maxEntries: 20,
+      ttl: 12 * 60 * 60 * 1000,
+      namespace: 'puzzleHistory'
+    });
+    this.completedCache = new Map();
+  }
+
   private async fetchPuzzleFromFirebase(date: string): Promise<DailyPuzzle> {
-    const puzzleDoc = await getDoc(doc(db, this.COLLECTION, date));
+    if (this.provider) {
+      const data = await this.provider.getDocument<DailyPuzzle>(this.COLLECTION, date);
+      if (!data) throw new Error(`No puzzle found for date: ${date}`);
+      return data;
+    }
+    const mod = await import('../firebase/firebase');
+    const db = mod.db;
+    const puzzleDoc = await getDoc(doc(db!, this.COLLECTION, date));
     
     if (!puzzleDoc.exists()) {
       throw new Error(`No puzzle found for date: ${date}`);
@@ -121,17 +142,26 @@ export class DailyPuzzleService {
     }
 
     // Query Firebase
-    const completedQuery = query(
-      collection(db, this.COMPLETED_COLLECTION),
-      where('userId', '==', userId),
-      limit(this.HISTORY_BATCH_SIZE + 1)
-    );
-    
-    const completedDocs = await getDocs(completedQuery);
+    let docs: any[] = [];
+    if (this.provider) {
+      docs = await this.provider.queryCollection<any>(this.COMPLETED_COLLECTION, [
+        { type: 'where', field: 'userId', operator: '==', value: userId },
+        { type: 'limit', count: this.HISTORY_BATCH_SIZE + 1 },
+      ]);
+    } else {
+      const mod = await import('../firebase/firebase');
+      const db = mod.db;
+      const completedQuery = query(
+        collection(db!, this.COMPLETED_COLLECTION),
+        where('userId', '==', userId),
+        limit(this.HISTORY_BATCH_SIZE + 1)
+      );
+      const completedDocs = await getDocs(completedQuery);
+      docs = completedDocs.docs.map(d => d.data());
+    }
     const puzzles: DailyPuzzle[] = [];
-    
-    for (const doc of completedDocs.docs.slice(0, this.HISTORY_BATCH_SIZE)) {
-      const puzzle = await this.fetchPuzzleFromFirebase(doc.data().puzzleDate);
+    for (const d of docs.slice(0, this.HISTORY_BATCH_SIZE)) {
+      const puzzle = await this.fetchPuzzleFromFirebase(d.puzzleDate);
       puzzles.push(puzzle);
     }
 
@@ -153,14 +183,21 @@ export class DailyPuzzleService {
     this.completedCache.set(puzzleDate, dateSet);
 
     // Update Firebase
-    await setDoc(
-      doc(db, this.COMPLETED_COLLECTION, `${puzzleDate}_${userId}`),
-      {
+    if (this.provider) {
+      await this.provider.setDocument(this.COMPLETED_COLLECTION, `${puzzleDate}_${userId}`, {
+        userId,
+        puzzleDate,
+        completedAt: new Date().toISOString()
+      });
+    } else {
+      const mod = await import('../firebase/firebase');
+      const db = mod.db;
+      await setDoc(doc(db!, this.COMPLETED_COLLECTION, `${puzzleDate}_${userId}`), {
         userId,
         puzzleDate,
         completedAt: new Date()
-      }
-    );
+      });
+    }
   }
 
   async hasCompletedPuzzle(userId: string, puzzleDate: string): Promise<boolean> {
@@ -169,10 +206,16 @@ export class DailyPuzzleService {
     if (dateSet?.has(userId)) return true;
 
     // Check Firebase
-    const docRef = doc(db, this.COMPLETED_COLLECTION, `${puzzleDate}_${userId}`);
-    const docSnap = await getDoc(docRef);
-    
-    const completed = docSnap.exists();
+    let completed = false;
+    if (this.provider) {
+      completed = await this.provider.documentExists(this.COMPLETED_COLLECTION, `${puzzleDate}_${userId}`);
+    } else {
+      const mod = await import('../firebase/firebase');
+      const db = mod.db;
+      const docRef = doc(db!, this.COMPLETED_COLLECTION, `${puzzleDate}_${userId}`);
+      const docSnap = await getDoc(docRef);
+      completed = docSnap.exists();
+    }
     
     // Update cache
     if (completed) {
@@ -191,5 +234,10 @@ export class DailyPuzzleService {
   }
 }
 
-// Export singleton instance
-export const dailyPuzzleService = new DailyPuzzleService(); 
+// Export singleton instance (client default)
+export const dailyPuzzleService = new DailyPuzzleService();
+
+// Helper to create a server-side instance with provider when needed
+export function createDailyPuzzleServiceWithProvider(provider: FirestoreProvider) {
+  return new DailyPuzzleService(provider);
+}

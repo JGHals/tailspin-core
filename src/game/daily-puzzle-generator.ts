@@ -1,7 +1,7 @@
 import { dictionaryAccess } from '../dictionary/dictionary-access';
 import { chainValidator } from './chain-validator';
-import { db } from '../firebase/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection } from 'firebase/firestore';
+import type { FirestoreProvider } from '@/services/firestore-provider';
 
 export interface DailyPuzzle {
   id: string;
@@ -159,6 +159,8 @@ export class DailyPuzzleGenerator {
     return shortestPath.slice(1).map(word => `${word.slice(0, 3)}...`);
   }
 
+  constructor(private provider?: FirestoreProvider | null) {}
+
   async generateDailyPuzzle(date: string): Promise<DailyPuzzle> {
     // Reset validator state
     chainValidator.resetUsedWords();
@@ -205,11 +207,18 @@ export class DailyPuzzleGenerator {
       }
     };
 
-    // Store in Firebase
-    await setDoc(
-      doc(db, DailyPuzzleGenerator.COLLECTION_PUZZLES, date),
-      puzzle
-    );
+    // Store in Firebase via provider if available, else client SDK in browser
+    if (this.provider) {
+      await this.provider.setDocument(DailyPuzzleGenerator.COLLECTION_PUZZLES, date, puzzle);
+    } else {
+      if (typeof window === 'undefined') {
+        throw new Error('No Firestore provider available for server-side generation');
+      }
+      const mod = await import('../firebase/firebase');
+      const db = mod.db;
+      if (!db) throw new Error('Firestore not initialized');
+      await setDoc(doc(db, DailyPuzzleGenerator.COLLECTION_PUZZLES, date), puzzle);
+    }
 
     return puzzle;
   }
@@ -240,6 +249,20 @@ export class DailyPuzzleGenerator {
     totalAttempts?: number;
     successRate?: number;
   }): Promise<void> {
+    if (this.provider) {
+      const existing = await this.provider.getDocument<DailyPuzzle>(DailyPuzzleGenerator.COLLECTION_PUZZLES, puzzleId);
+      if (!existing) {
+        throw new Error('Puzzle not found');
+      }
+      await this.provider.setDocument(DailyPuzzleGenerator.COLLECTION_PUZZLES, puzzleId, {
+        ...existing,
+        metadata: { ...existing.metadata, ...metadata }
+      } as any);
+      return;
+    }
+    const mod = await import('../firebase/firebase');
+    const db = mod.db;
+    if (!db) throw new Error('Firestore not initialized');
     const puzzleRef = doc(db, DailyPuzzleGenerator.COLLECTION_PUZZLES, puzzleId);
     const puzzleDoc = await getDoc(puzzleRef);
     
@@ -249,15 +272,9 @@ export class DailyPuzzleGenerator {
     
     const puzzle = puzzleDoc.data() as DailyPuzzle;
     
-    await setDoc(puzzleRef, {
-      ...puzzle,
-      metadata: {
-        ...puzzle.metadata,
-        ...metadata
-      }
-    });
+    await setDoc(puzzleRef, { ...puzzle, metadata: { ...puzzle.metadata, ...metadata } });
   }
 }
 
 // Export singleton instance
-export const dailyPuzzleGenerator = new DailyPuzzleGenerator(); 
+export const dailyPuzzleGenerator = new DailyPuzzleGenerator();
