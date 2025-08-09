@@ -24,13 +24,16 @@ export async function GET(request: Request) {
 // Generate puzzles for the next week
 export async function POST(request: Request) {
   try {
-    // Prefetch next 3 days to warm caches
+    // Prefetch next 3 days to warm caches (does not generate new puzzles)
     await (dailyPuzzleService as any).prefetchUpcomingPuzzles?.();
-    return NextResponse.json({ message: 'Generated puzzles for next week' });
+    return NextResponse.json({
+      message: 'Prefetched upcoming puzzles to warm caches',
+      note: 'This endpoint does not generate new puzzles. Use /api/admin/generate-puzzles for generation.',
+    });
   } catch (error) {
-    console.error('Error generating puzzles:', error);
+    console.error('Error prefetching puzzles:', error);
     return NextResponse.json(
-      { error: 'Failed to generate puzzles' },
+      { error: 'Prefetch failed' },
       { status: 500 }
     );
   }

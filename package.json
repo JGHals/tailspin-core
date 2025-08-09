@@ -10,7 +10,9 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf .next node_modules",
-    "test": "jest"
+    "test": "jest",
+    "generate-puzzles": "tsx src/scripts/generate-weekly-puzzles.ts",
+    "generate-puzzles:week": "tsx src/scripts/generate-weekly-puzzles.ts"
   },
   "keywords": [
     "game-engine",
@@ -70,6 +72,7 @@
     "tailwind-merge": "^3.3.1",
     "ts-jest": "^29.4.1",
     "ts-node": "^10.9.2",
+    "tsx": "^4.15.7",
     "typescript": "^5.0.0",
     "zod": "^4.0.16"
   },
