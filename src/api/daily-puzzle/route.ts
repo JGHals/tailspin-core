@@ -10,9 +10,14 @@ export async function GET(request: Request) {
     const date = dateStr ? new Date(dateStr) : new Date();
 
     // Get puzzle for the specified date
-    const puzzle = await dailyPuzzleService.getDailyPuzzle(date);
-
-    return NextResponse.json(puzzle);
+    const controller = new AbortController();
+    const to = setTimeout(() => controller.abort(), 30000);
+    try {
+      const puzzle = await dailyPuzzleService.getDailyPuzzle(date);
+      return NextResponse.json(puzzle);
+    } finally {
+      clearTimeout(to);
+    }
   } catch (error) {
     console.error('Error getting daily puzzle:', error);
     return NextResponse.json(

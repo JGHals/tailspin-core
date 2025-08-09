@@ -18,6 +18,21 @@ export async function GET() {
   });
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const id = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise
+      .then((v) => {
+        clearTimeout(id);
+        resolve(v);
+      })
+      .catch((e) => {
+        clearTimeout(id);
+        reject(e);
+      });
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Ensure Admin SDK is available
@@ -60,9 +75,17 @@ export async function POST(request: NextRequest) {
             continue;
           }
         }
-
-        const generator = new DailyPuzzleGenerator(provider);
-        const puzzle = await generator.generateDailyPuzzle(dateStr);
+        const generator = new DailyPuzzleGenerator(provider, {
+          fastMode: true,
+          maxCandidatesPerPrefix: 200,
+          maxBranchingPerNode: 100,
+          timeBudgetMs: 15000,
+        });
+        const puzzle = await withTimeout(
+          generator.generateDailyPuzzle(dateStr),
+          30000,
+          `Generation for ${dateStr}`
+        );
         results.push({
           date: dateStr,
           status: 'success',

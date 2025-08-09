@@ -35,18 +35,12 @@ let auth: any = null;
 let dbInternal: Firestore | null = null;
 let storageInternal: FirebaseStorage | null = null;
 
-// Exported handles declared BEFORE any assignment to avoid TDZ/hoisting issues
-export let db: Firestore | null = null;
-export let storage: FirebaseStorage | null = null;
-
 try {
   if (isBrowser && hasRequiredClientConfig()) {
     app = getApps().length ? getApp() : initializeApp(firebaseConfig);
     dbInternal = getFirestore(app);
     storageInternal = getStorage(app);
-    // update exported references to point at the initialized instances
-    db = dbInternal;
-    storage = storageInternal;
+    // instances are held internally; access via getters to avoid TDZ issues
     auth = getAuth(app);
     setPersistence(auth, browserLocalPersistence).catch((error) => {
       console.error('Error setting auth persistence:', error);
@@ -69,11 +63,15 @@ try {
 }
 
 export function isFirebaseReady(): boolean {
-  return Boolean(db);
+  return Boolean(dbInternal);
 }
 
 export function getDbOptional(): Firestore | null {
-  return db;
+  return dbInternal;
+}
+
+export function getStorageOptional(): FirebaseStorage | null {
+  return storageInternal;
 }
 
 export { app, auth };
