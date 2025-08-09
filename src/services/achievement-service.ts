@@ -406,6 +406,8 @@ class AchievementService {
 
       // Convert GameHistory to GameResult format for consistency
       const gameResult: GameResult = currentGame ? {
+        userId,
+        username: profile.displayName,
         mode: currentGame.mode,
         chain: currentGame.chain,
         score: {
@@ -423,8 +425,11 @@ class AchievementService {
         parMoves: undefined, // Not tracked in history
         duration: currentGame.duration,
         powerUpsUsed: [], // Not tracked in history
-        date: currentGame.date
+        date: currentGame.date,
+        wordTimings: new Map<string, number>()
       } : {
+        userId,
+        username: profile.displayName,
         mode: 'endless',
         chain: [],
         score: {
@@ -442,7 +447,8 @@ class AchievementService {
         parMoves: undefined,
         duration: 0,
         powerUpsUsed: [],
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        wordTimings: new Map<string, number>()
       };
 
       const newProgress = definition.checkProgress(gameResult, profile, currentGame);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { z } from 'zod';
 import { adminAuth } from '@/lib/firebase/admin';
 import { leaderboardManager } from '@/lib/game/leaderboard-manager';
@@ -13,7 +14,7 @@ const LEADERBOARD_RATE_LIMIT = {
 // Query parameters schema
 const QuerySchema = z.object({
   mode: z.enum(['daily', 'endless', 'versus']).default('endless'),
-  period: z.enum(['daily', 'weekly', 'monthly', 'allTime']).default('allTime'),
+  period: z.enum(['daily', 'weekly', 'allTime']).default('allTime'),
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(100).default(20)
 });
@@ -102,7 +103,7 @@ export async function GET(req: NextRequest) {
     );
 
     // Calculate pagination
-    const totalPages = Math.ceil(leaderboard.totalPlayers / limit);
+    const totalPages = Math.ceil(leaderboard.entries.length / limit);
     const pagination = {
       currentPage: page,
       totalPages,

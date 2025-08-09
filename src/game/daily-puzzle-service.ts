@@ -28,13 +28,13 @@ export class DailyPuzzleService {
   private prefetchTimeout: NodeJS.Timeout | null = null;
   
   constructor() {
-    this.puzzleCache = new UnifiedCache<DailyPuzzle>({
+    this.puzzleCache = UnifiedCache.getInstance<DailyPuzzle>({
       maxEntries: 10,
       ttl: 24 * 60 * 60 * 1000, // 24 hours
       namespace: 'dailyPuzzles'
     });
     
-    this.historyCache = new UnifiedCache<PuzzleHistoryResult>({
+    this.historyCache = UnifiedCache.getInstance<PuzzleHistoryResult>({
       maxEntries: 20,
       ttl: 12 * 60 * 60 * 1000, // 12 hours
       namespace: 'puzzleHistory'

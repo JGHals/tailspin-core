@@ -21,7 +21,7 @@ export async function validateRequest<T>(
       return new NextResponse(
         JSON.stringify({
           error: 'Invalid request body',
-          details: error.errors
+          details: (error as any).issues || []
         }),
         {
           status: 400,

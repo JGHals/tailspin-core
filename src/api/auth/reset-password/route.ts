@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '@/lib/firebase/firebase';
+// Password resets are initiated client-side via Firebase SDK.
 
 export async function POST(request: Request) {
   try {
@@ -14,12 +13,8 @@ export async function POST(request: Request) {
     }
 
     try {
-      await sendPasswordResetEmail(auth, email);
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Password reset email sent'
-      });
+      // Stub: instruct client to initiate reset via Firebase SDK.
+      return NextResponse.json({ success: false, message: 'Use client-side Firebase to send reset email.' }, { status: 501 });
     } catch (error: any) {
       console.error('Password reset error:', error);
       

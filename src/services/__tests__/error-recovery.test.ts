@@ -4,8 +4,10 @@ import type { GameState } from '../../types/game';
 
 // Mock chainValidator
 jest.mock('../../game/chain-validator', () => ({
-  validateNextWord: jest.fn(),
-  isTerminalPosition: jest.fn()
+  chainValidator: {
+    validateNextWord: jest.fn(),
+    isTerminalPosition: jest.fn(),
+  }
 }));
 
 describe('ErrorRecoveryService', () => {

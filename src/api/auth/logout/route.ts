@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase/firebase';
 import { rateLimit } from '@/lib/middleware/rate-limit';
 import { validateAuth } from '@/lib/middleware/validate';
 
@@ -37,8 +35,7 @@ export async function POST(req: NextRequest) {
     const authResult = validateAuth(req);
     if (authResult) return authResult;
 
-    // Sign out from Firebase
-    await signOut(auth);
+    // Server-side logout is a no-op; clients should call Firebase signOut in the browser.
 
     return NextResponse.json({
       success: true

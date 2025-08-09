@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { auth } from '@/lib/firebase/firebase';
-import { userProfileService } from '@/lib/services/user-profile-service';
 import { rateLimit } from '@/lib/middleware/rate-limit';
 import { validateRequest } from '@/lib/middleware/validate';
-import { withAuth } from '../../middleware/auth';
 
 // Login request schema
 const LoginSchema = z.object({
@@ -58,52 +54,13 @@ const AUTH_RATE_LIMIT = {
  */
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
-
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Email and password are required' },
-        { status: 400 }
-      );
+    const body = await request.json();
+    const parsed = LoginSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
-
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      
-      // Get the ID token
-      const idToken = await user.getIdToken();
-      
-      return NextResponse.json({
-        success: true,
-        user: {
-          uid: user.uid,
-          email: user.email,
-          emailVerified: user.emailVerified,
-        },
-        token: idToken,
-      });
-    } catch (error: any) {
-      console.error('Login error:', error);
-      
-      // Handle specific Firebase auth errors
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        return NextResponse.json(
-          { error: 'Invalid email or password' },
-          { status: 401 }
-        );
-      } else if (error.code === 'auth/too-many-requests') {
-        return NextResponse.json(
-          { error: 'Too many login attempts. Please try again later.' },
-          { status: 429 }
-        );
-      }
-      
-      return NextResponse.json(
-        { error: 'Login failed' },
-        { status: 500 }
-      );
-    }
+    // This endpoint is a stub in the core engine. Perform auth in the client, then call server APIs with the ID token.
+    return NextResponse.json({ error: 'Not implemented on server. Use client-side Firebase Auth.' }, { status: 501 });
   } catch (error) {
     console.error('Request processing error:', error);
     return NextResponse.json(

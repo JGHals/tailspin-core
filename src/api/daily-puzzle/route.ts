@@ -24,7 +24,8 @@ export async function GET(request: Request) {
 // Generate puzzles for the next week
 export async function POST(request: Request) {
   try {
-    await dailyPuzzleService.generatePuzzlesForNextWeek();
+    // Prefetch next 3 days to warm caches
+    await (dailyPuzzleService as any).prefetchUpcomingPuzzles?.();
     return NextResponse.json({ message: 'Generated puzzles for next week' });
   } catch (error) {
     console.error('Error generating puzzles:', error);

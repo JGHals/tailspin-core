@@ -1,12 +1,12 @@
-import { dictionaryAccess } from './dictionary/dictionary-access';
-import { VALID_STARTING_COMBOS, VALID_FLIPS } from './validation/constants';
+import { dictionaryAccess } from '../dictionary/dictionary-access';
+import { VALID_STARTING_COMBOS, VALID_FLIPS } from '../validation/constants';
 
 /**
  * Gets a random valid starting combination for word chains
  * Optionally excludes specific combinations
  */
 export function getRandomStartingCombo(exclude: string[] = []): string {
-  const validCombos = VALID_STARTING_COMBOS.filter(combo => !exclude.includes(combo));
+  const validCombos = VALID_STARTING_COMBOS.filter((combo: string) => !exclude.includes(combo));
   return validCombos[Math.floor(Math.random() * validCombos.length)];
 }
 

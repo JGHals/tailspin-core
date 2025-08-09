@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { adminAuth } from '@/lib/firebase/admin';
 import { achievementService } from '@/lib/services/achievement-service';
 import { rateLimit } from '@/lib/middleware/rate-limit';

@@ -27,8 +27,8 @@ export function useAchievements() {
 
       try {
         const [userAchievements, achievementStats] = await Promise.all([
-          achievementService.getUserAchievements(user.uid),
-          achievementService.getAchievementStats(user.uid)
+          achievementService.getUserAchievements(user.id),
+          achievementService.getAchievementStats(user.id)
         ]);
         setAchievements(userAchievements);
         setStats(achievementStats);

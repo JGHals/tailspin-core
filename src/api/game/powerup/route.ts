@@ -182,8 +182,7 @@ export async function POST(req: NextRequest) {
         if (!result.success) {
           return NextResponse.json({
             success: false,
-            error: result.error,
-            reason: result.reason
+            error: result.error
           });
         }
         return NextResponse.json({
@@ -203,8 +202,7 @@ export async function POST(req: NextRequest) {
         if (!result.success) {
           return NextResponse.json({
             success: false,
-            error: result.error,
-            reason: result.reason
+            error: result.error
           });
         }
         return NextResponse.json({
@@ -224,8 +222,7 @@ export async function POST(req: NextRequest) {
         if (!result.success) {
           return NextResponse.json({
             success: false,
-            error: result.error,
-            reason: result.reason
+            error: result.error
           });
         }
         return NextResponse.json({
@@ -245,8 +242,7 @@ export async function POST(req: NextRequest) {
         if (!result.success) {
           return NextResponse.json({
             success: false,
-            error: result.error,
-            reason: result.reason
+            error: result.error
           });
         }
         return NextResponse.json({

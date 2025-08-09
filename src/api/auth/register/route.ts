@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from 'firebase/auth';
-import { auth } from '@/lib/firebase/firebase';
+// Registration handled client-side; this endpoint can be extended to create profiles after client auth.
 import { userProfileService } from '@/lib/services/user-profile-service';
 import { rateLimit } from '@/lib/middleware/rate-limit';
 import { validateRequest } from '@/lib/middleware/validate';
@@ -68,42 +67,14 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      // Create Firebase user
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // Create user profile
+      // Stub: in production, client performs Firebase auth; server creates profile after token verification.
       const userProfile = await userProfileService.createProfile(
-        user.uid,
+        `stub_${Date.now()}`,
         username,
         email,
         undefined
       );
-
-      // Send verification email
-      await sendEmailVerification(user);
-
-      // Get the ID token
-      const idToken = await user.getIdToken();
-
-      return NextResponse.json({
-        success: true,
-        user: {
-          uid: user.uid,
-          email: user.email,
-          username: userProfile.displayName,
-          emailVerified: user.emailVerified,
-          tokens: userProfile.tokens,
-          maxTokens: 50,
-          stats: {
-            gamesPlayed: 0,
-            bestScore: 0,
-            winRate: 0,
-            avgWordLength: 0
-          }
-        },
-        token: idToken,
-      });
+      return NextResponse.json({ success: true, user: userProfile });
     } catch (error: any) {
       console.error('Registration error:', error);
 

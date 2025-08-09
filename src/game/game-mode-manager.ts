@@ -3,7 +3,8 @@ import { ScoringSystem, defaultScoringRules, GameScore } from './scoring';
 import { dictionaryAccess } from '../dictionary/dictionary-access';
 import { userProfileService } from '../services/user-profile-service';
 import { achievementSystem } from './achievement-system';
-import { powerUpSystem, PowerUpResult } from './power-up-system';
+import { powerUpSystem } from './power-up-system';
+import type { PowerUpResult } from '../types/game';
 import { gameStateService } from '../services/game-state-service';
 import { dailyPuzzleService } from './daily-puzzle-service';
 import type { Achievement, GameHistory } from '../types/user-profile';
@@ -123,7 +124,7 @@ export class GameModeManagerImpl implements GameModeManager {
 
     try {
       const savedGame = await gameStateService.getLastSavedGame(this.userId, this.state.mode);
-      if (savedGame && !savedGame.isComplete) {
+      if (savedGame && !savedGame.state.isComplete) {
         // Notify subscribers about unfinished game
         this.notifyUnfinishedGame(savedGame);
       }
@@ -146,33 +147,34 @@ export class GameModeManagerImpl implements GameModeManager {
       if (!savedGame || savedGame.userId !== this.userId) return false;
 
       // For daily challenges, verify the save matches today's puzzle
-      if (savedGame.mode === 'daily') {
+      if (savedGame.state.mode === 'daily') {
         const todaysPuzzle = await this.getCurrentDailyPuzzle();
-        if (savedGame.startWord !== todaysPuzzle.startWord || 
-            savedGame.targetWord !== todaysPuzzle.targetWord) {
+        if (savedGame.state.startWord !== todaysPuzzle.startWord || 
+            savedGame.state.targetWord !== todaysPuzzle.targetWord) {
           await gameStateService.deleteSavedGame(gameId);
           return false;
         }
       }
 
       // Restore game state
+      const s = savedGame.state;
       this.state = {
-        mode: savedGame.mode,
-        chain: savedGame.chain,
-        startWord: savedGame.startWord,
-        targetWord: savedGame.targetWord,
-        score: savedGame.score,
-        stats: savedGame.stats,
-        isComplete: savedGame.isComplete,
-        startTime: savedGame.startTime,
-        lastMoveTime: savedGame.lastMoveTime,
-        hintsUsed: savedGame.hintsUsed,
-        invalidAttempts: savedGame.invalidAttempts,
-        wordTimings: new Map(savedGame.wordTimings.map(wt => [wt.word, wt.time])),
-        terminalWords: new Set(savedGame.terminalWords),
-        powerUpsUsed: new Set(savedGame.powerUpsUsed),
-        rareLettersUsed: new Set(savedGame.rareLettersUsed),
-        dailyPuzzle: savedGame.dailyPuzzle
+        mode: s.mode,
+        chain: s.chain,
+        startWord: s.startWord,
+        targetWord: s.targetWord,
+        score: s.score,
+        stats: s.stats,
+        isComplete: s.isComplete,
+        startTime: s.startTime,
+        lastMoveTime: s.lastMoveTime,
+        hintsUsed: s.hintsUsed,
+        invalidAttempts: s.invalidAttempts,
+        wordTimings: new Map(s.wordTimings),
+        terminalWords: new Set(s.terminalWords),
+        powerUpsUsed: new Set(s.powerUpsUsed),
+        rareLettersUsed: new Set(s.rareLettersUsed),
+        dailyPuzzle: s.dailyPuzzle
       };
 
       this.currentGameId = gameId;
@@ -200,7 +202,7 @@ export class GameModeManagerImpl implements GameModeManager {
     if (!this.userId || this.state.isComplete) return;
 
     try {
-      const stateToSave = {
+      const stateToSave: any = {
         mode: this.state.mode,
         chain: this.state.chain,
         startWord: this.state.startWord,
@@ -212,10 +214,10 @@ export class GameModeManagerImpl implements GameModeManager {
         lastMoveTime: this.state.lastMoveTime,
         hintsUsed: this.state.hintsUsed,
         invalidAttempts: this.state.invalidAttempts,
-        wordTimings: Array.from(this.state.wordTimings.entries()).map(([word, time]) => ({ word, time })),
-        terminalWords: Array.from(this.state.terminalWords),
-        powerUpsUsed: Array.from(this.state.powerUpsUsed),
-        rareLettersUsed: Array.from(this.state.rareLettersUsed),
+        wordTimings: this.state.wordTimings,
+        terminalWords: this.state.terminalWords,
+        powerUpsUsed: this.state.powerUpsUsed,
+        rareLettersUsed: this.state.rareLettersUsed,
         dailyPuzzle: this.state.dailyPuzzle
       };
 
@@ -393,7 +395,7 @@ export class GameModeManagerImpl implements GameModeManager {
     if (result.success) {
       this.state.hintsUsed++;
       this.state.powerUpsUsed.add('hint');
-      return result.data.hints;
+      return result.data?.words ?? [];
     }
 
     return [];
@@ -441,7 +443,7 @@ export class GameModeManagerImpl implements GameModeManager {
 
     const result = await powerUpSystem.useUndo(this.userId, this.state.chain);
     if (result.success) {
-      this.state.chain = result.data.newChain;
+      this.state.chain = result.data?.words ?? this.state.chain;
       this.state.stats = await chainValidator.getChainStats(this.state.chain);
       this.state.score = this.scoring.calculateScore({
         chain: this.state.chain,

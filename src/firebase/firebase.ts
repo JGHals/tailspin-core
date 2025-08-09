@@ -2,7 +2,6 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import 'isomorphic-fetch';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,16 +12,55 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
+function isLikelyValidApiKey(key?: string): boolean {
+  if (!key) return false;
+  // Typical Firebase Web API keys start with AIza and are ~39 chars
+  return key.startsWith('AIza') && key.length >= 30;
+}
+
+function hasRequiredClientConfig(): boolean {
+  return Boolean(
+    isLikelyValidApiKey(firebaseConfig.apiKey) &&
+      firebaseConfig.authDomain &&
+      firebaseConfig.projectId &&
+      firebaseConfig.appId
+  );
+}
+
 // Initialize Firebase
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const isBrowser = typeof window !== 'undefined';
 
-// Configure persistence
-setPersistence(auth, browserLocalPersistence).catch((error) => {
-  console.error("Error setting auth persistence:", error);
-});
+let app: ReturnType<typeof getApp> | null = null;
+let auth: any = null;
+let db: ReturnType<typeof getFirestore> | null = null;
+let storage: ReturnType<typeof getStorage> | null = null;
 
-const db = getFirestore(app);
-const storage = getStorage(app);
+try {
+  if (hasRequiredClientConfig()) {
+    app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    storage = getStorage(app);
+    if (isBrowser) {
+      auth = getAuth(app);
+      setPersistence(auth, browserLocalPersistence).catch((error) => {
+        console.error('Error setting auth persistence:', error);
+      });
+    }
+  } else {
+    // Log diagnostics once in dev
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.warn('[Firebase] Skipping initialization due to missing/invalid config', {
+        hasApiKey: Boolean(firebaseConfig.apiKey),
+        apiKeyLooksValid: isLikelyValidApiKey(firebaseConfig.apiKey),
+        projectId: firebaseConfig.projectId,
+        authDomain: firebaseConfig.authDomain,
+        appIdPresent: Boolean(firebaseConfig.appId)
+      });
+    }
+  }
+} catch (err) {
+  console.error('[Firebase] Initialization error:', err);
+}
 
 export { app, auth, db, storage };

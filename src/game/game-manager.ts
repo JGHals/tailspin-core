@@ -23,10 +23,11 @@ export class GameManager {
       isComplete: false,
       score: {
         total: 0,
-        wordPoints: 0,
-        chainPoints: 0,
-        bonusPoints: 0,
-        terminalPoints: 0
+        wordScores: {},
+        multiplier: 1,
+        terminalBonus: 0,
+        dailyBonus: 0,
+        penalties: 0
       },
       wordTimings: new Map(),
       terminalWords: new Set(),

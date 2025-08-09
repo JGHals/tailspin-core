@@ -37,17 +37,8 @@ export class DictionaryLoader {
     this.state = {
       status: 'loading',
       wordCount: 0,
-      loadedPrefixes: 0,
-      totalPrefixes: 0,
-      lastUpdated: new Date().toISOString(),
-      progress: {
-        totalPrefixes: 0,
-        loadedPrefixes: 0,
-        essentialPrefixesLoaded: false,
-        popularPrefixesLoaded: false,
-        errors: []
-      }
-    };
+      lastUpdated: new Date().toISOString()
+    } as any;
     this.dictionaryUnifiedCache = new DictionaryUnifiedCache();
     this.initializeBackgroundProcessing();
   }
@@ -90,20 +81,20 @@ export class DictionaryLoader {
   }
 
   private updateProgress() {
-    if (!this.state.progress) return;
+    if (!(this.state as any).progress) return;
 
     const errors = Array.from(this.prefixLoadErrors.entries()).map(([prefix, error]) => ({
       prefix,
       error
     }));
 
-    this.state.progress = {
-      ...this.state.progress,
+    (this.state as any).progress = {
+      ...(this.state as any).progress,
       loadedPrefixes: this.loadedPrefixes.size,
       errors
     };
 
-    this.state.loadedPrefixes = this.loadedPrefixes.size;
+    (this.state as any).loadedPrefixes = this.loadedPrefixes.size;
     this.state.lastUpdated = new Date().toISOString();
   }
 
@@ -189,7 +180,7 @@ export class DictionaryLoader {
     }
 
     this.isInitializing = true;
-    this.state.status = 'initializing';
+    (this.state as any).status = 'initializing';
     debugLog('Starting initialization');
 
     this.initializationPromise = (async () => {
@@ -201,8 +192,8 @@ export class DictionaryLoader {
           .map(prefix => this.loadPrefix(prefix));
         
         await Promise.all(highPriorityPromises);
-        if (this.state.progress) {
-          this.state.progress.essentialPrefixesLoaded = true;
+        if ((this.state as any).progress) {
+          (this.state as any).progress.essentialPrefixesLoaded = true;
         }
         
         // Get metadata and update progress
@@ -212,9 +203,9 @@ export class DictionaryLoader {
           .map(([prefix]) => prefix)
           .sort();
 
-        this.state.totalPrefixes = popularPrefixes.length;
-        if (this.state.progress) {
-          this.state.progress.totalPrefixes = popularPrefixes.length;
+        (this.state as any).totalPrefixes = popularPrefixes.length;
+        if ((this.state as any).progress) {
+          (this.state as any).progress.totalPrefixes = popularPrefixes.length;
         }
         
         // Queue popular prefixes for background loading
@@ -226,7 +217,7 @@ export class DictionaryLoader {
         });
         
         this.isInitialized = true;
-        this.state.status = 'ready';
+        (this.state as any).status = 'ready';
         debugLog('Dictionary initialized successfully');
       } catch (error) {
         const dictError = createDictionaryError(
@@ -236,8 +227,8 @@ export class DictionaryLoader {
           () => this.initialize(true)
         );
         
-        this.state.error = dictError;
-        this.state.status = 'error';
+        (this.state as any).error = dictError;
+        (this.state as any).status = 'error';
         this.dictionary.clear();
         this.isInitialized = false;
         
@@ -283,11 +274,9 @@ export class DictionaryLoader {
     this.dictionary.clear();
     this.loadedPrefixes.clear();
     this.prefixLoadErrors.clear();
-    this.state = {
+    (this.state as any) = {
       status: 'loading',
       wordCount: 0,
-      loadedPrefixes: 0,
-      totalPrefixes: 0,
       lastUpdated: new Date().toISOString(),
       progress: {
         totalPrefixes: 0,
@@ -302,7 +291,7 @@ export class DictionaryLoader {
   }
 
   public getLoadingProgress(): LoadingProgress | undefined {
-    return this.state.progress;
+    return (this.state as any).progress;
   }
 
   public getDictionaryUnifiedCache(): DictionaryUnifiedCache {

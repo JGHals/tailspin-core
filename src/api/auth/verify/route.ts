@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { adminAuth } from '@/lib/firebase/admin';
-import { auth as clientAuth } from '@/lib/firebase/firebase';
+// Client Firebase auth is not used server-side here.
 import { userProfileService } from '@/lib/services/user-profile-service';
 import { rateLimit } from '@/lib/middleware/rate-limit';
 import { validateAuth } from '@/lib/middleware/validate';

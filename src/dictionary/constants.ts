@@ -5,7 +5,8 @@ export const DICTIONARY_CONFIG: DictionaryConfig = {
   minWordLength: 2,
   maxWordLength: 15,
   cacheVersion: '1.0.0',
-  firebasePath: 'dictionary'
+  prefixLength: 2,
+  maxSuggestions: 50
 };
 
 export const CACHE_KEYS = {

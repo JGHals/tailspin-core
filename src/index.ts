@@ -17,17 +17,17 @@ export { isValidStartingCombo } from './validation/word-validation'
 
 // Services
 export { createGamePersistence } from './services/game-persistence'
-export { GameStateService } from './services/game-state-service'
-export { UserProfileService } from './services/user-profile-service'
-export { AchievementService } from './services/achievement-service'
-export { PowerUpService } from './services/power-up.service'
+export { gameStateService, GameStateService } from './services/game-state-service'
+export { userProfileService, UserProfileService } from './services/user-profile-service'
+export { achievementService } from './services/achievement-service'
+export { powerUpSystem as PowerUpService } from './game/power-up-system'
 export { errorRecovery } from './services/error-recovery'
-export { ConnectionManager } from './services/connection-manager'
-export { StartupService } from './services/startup-service'
+export { connectionManager } from './services/connection-manager'
+export { startupService } from './services/startup-service'
 
 // Firebase
-export { firebaseApp } from './firebase/firebase'
-export { adminApp } from './firebase/admin'
+export { app as firebaseApp } from './firebase/firebase'
+// admin app instance is not exported; use admin services directly
 
 // Types
 export type {
@@ -38,11 +38,7 @@ export type {
   GameResult
 } from './types/game'
 
-export type {
-  UserProfile,
-  UserStats,
-  UserAchievements
-} from './types/user'
+// user/achievement/power-up types not present in this extraction
 
 export type {
   WordValidationResult,
@@ -50,33 +46,23 @@ export type {
   ChainValidationResult
 } from './types/validation'
 
-export type {
-  Achievement,
-  AchievementType,
-  AchievementProgress
-} from './types/achievements'
-
-export type {
-  PowerUp,
-  PowerUpType,
-  PowerUpCost
-} from './types/power-ups'
+// Achievement and power-up types are encapsulated within feature modules in this extraction
 
 // Hooks (for React integration)
-export { useGame } from './hooks/useGame'
+// export { useGame } from './hooks/useGame' // not present in extracted engine
 export { useDictionary } from './hooks/useDictionary'
 export { useUserProfile } from './hooks/useUserProfile'
-export { useConnection } from './hooks/useConnection'
+// export { useConnection } from './hooks/useConnection'
 
 // Contexts (for React integration)
-export { GameProvider, useGameContext } from './contexts/game-context'
+export { GameProvider } from './contexts/game-context'
 export { AuthProvider, useAuth } from './contexts/AuthContext'
-export { ConnectionProvider, useConnectionContext } from './contexts/connection-context'
+export { ConnectionProvider, useConnection as useConnectionContext } from './contexts/connection-context'
 
 // Utils
 export * from './utils/utils'
-export * from './utils/game-utils'
+export * from './game/game-utils'
 
 // Constants
 export { VALID_STARTING_COMBOS } from './validation/constants'
-export { POWER_UP_COSTS } from './game/power-up-system'
+// POWER_UP_COSTS constant not exported; use powerUpSystem.getCosts()

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { chainValidator } from '@/lib/game/chain-validator';
 import { scoringSystem } from '@/lib/game/scoring';
-import { auth } from '@/lib/firebase/firebase';
 
 export interface ValidateWordRequest {
   chain: string[];

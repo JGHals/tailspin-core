@@ -10,18 +10,18 @@ export function useAnalytics() {
   const [error, setError] = useState<Error | null>(null);
 
   const trackGameCompletion = useCallback(async (gameResult: GameResult) => {
-    if (!user?.uid) return;
+    if (!user?.id) return;
     
     try {
       setIsLoading(true);
-      await analyticsService.trackGameCompletion(gameResult, user.uid);
+      await analyticsService.trackGameCompletion(gameResult, user.id);
     } catch (error) {
       console.error('Failed to track game completion:', error);
       setError(error as Error);
     } finally {
       setIsLoading(false);
     }
-  }, [user?.uid]);
+  }, [user?.id]);
 
   const measurePerformance = useCallback(async <T>(
     type: 'dictionary_load' | 'word_validation' | 'chain_validation' | 'score_submission',
@@ -34,11 +34,11 @@ export function useAnalytics() {
   const getPlayerInsights = useCallback(async (
     dateRange?: { start: Date; end: Date }
   ): Promise<PlayerInsights | null> => {
-    if (!user?.uid) return null;
+    if (!user?.id) return null;
 
     try {
       setIsLoading(true);
-      return await analyticsService.getPlayerInsights(user.uid, dateRange);
+      return await analyticsService.getPlayerInsights(user.id, dateRange);
     } catch (error) {
       console.error('Failed to get player insights:', error);
       setError(error as Error);
@@ -46,7 +46,7 @@ export function useAnalytics() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.uid]);
+  }, [user?.id]);
 
   const queryAnalytics = useCallback(async (params: {
     gameMode?: 'daily' | 'endless' | 'versus';
@@ -55,13 +55,13 @@ export function useAnalytics() {
     minChainLength?: number;
     difficulty?: 'easy' | 'medium' | 'hard';
   }) => {
-    if (!user?.uid) return [];
+    if (!user?.id) return [];
 
     try {
       setIsLoading(true);
       return await analyticsService.queryAnalytics({
         ...params,
-        userId: user.uid
+        userId: user.id
       });
     } catch (error) {
       console.error('Failed to query analytics:', error);
@@ -70,7 +70,7 @@ export function useAnalytics() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.uid]);
+  }, [user?.id]);
 
   return {
     trackGameCompletion,

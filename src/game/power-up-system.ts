@@ -44,7 +44,7 @@ export class PowerUpSystem {
       const lastTwoLetters = lastWord.slice(-2);
       const flippedLetters = lastTwoLetters.split('').reverse().join('');
       
-      const nextWords = await chainValidator.findPossibleNextWords(flippedLetters);
+      const nextWords = await chainValidator.findPossibleNextWords(lastWord);
       if (!nextWords.length) {
         return {
           success: false,
@@ -156,7 +156,7 @@ export class PowerUpSystem {
       return {
         success: true,
         data: {
-          words: newChain // Use words array for consistency
+          words: newChain
         }
       };
     } catch (err) {
@@ -168,7 +168,7 @@ export class PowerUpSystem {
     }
   }
 
-  async useWordWarp(uid: string): Promise<PowerUpResult> {
+  async useWordWarp(uid: string, lastWord: string = ''): Promise<PowerUpResult> {
     if (!await this.validateAndDeduct(uid, 'wordWarp')) {
       return {
         success: false,
@@ -178,7 +178,9 @@ export class PowerUpSystem {
 
     try {
       // Get all possible two-letter combinations that have valid next words
-      const validPrefixes = await chainValidator.findPossibleNextWords('');
+      const validPrefixes = lastWord
+        ? await chainValidator.findPossibleNextWords(lastWord)
+        : [];
       if (!validPrefixes.length) {
         return {
           success: false,

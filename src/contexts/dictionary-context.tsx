@@ -29,9 +29,7 @@ export const DictionaryContext = createContext<DictionaryContextType>({
   state: {
     status: 'loading',
     wordCount: 0,
-    lastUpdated: new Date().toISOString(),
-    loadedPrefixes: 0,
-    totalPrefixes: 0
+    lastUpdated: new Date().toISOString()
   },
   isReady: false,
   error: null,
@@ -45,9 +43,7 @@ export function DictionaryProvider({ children }: { children: React.ReactNode }) 
   const [state, setState] = useState<DictionaryState>({
     status: 'loading',
     wordCount: 0,
-    lastUpdated: new Date().toISOString(),
-    loadedPrefixes: 0,
-    totalPrefixes: 0
+    lastUpdated: new Date().toISOString()
   });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -101,7 +97,7 @@ export function DictionaryProvider({ children }: { children: React.ReactNode }) 
       
       if (startupService.isDictionaryReady()) {
         const dict = dictionaryLoader.getDictionary();
-        const state = dictionaryLoader.getState();
+        const state = dictionaryLoader.getState() as any;
         
         setDictionary(dict);
         setState(state);

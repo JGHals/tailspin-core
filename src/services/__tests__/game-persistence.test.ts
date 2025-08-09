@@ -11,8 +11,8 @@ jest.mock('firebase/firestore', () => ({
   getFirestore: jest.fn(() => ({})),
   doc: jest.fn(),
   getDoc: jest.fn(),
-  setDoc: jest.fn()
-}));
+  setDoc: jest.fn(),
+}))
 
 describe('GamePersistenceService', () => {
   let service: GamePersistenceService;
@@ -158,7 +158,15 @@ describe('GamePersistenceService', () => {
       (getDoc as jest.Mock).mockRejectedValue(new Error('Firebase error'));
 
       const backupState = {
-        state: mockState,
+        state: {
+          ...mockState,
+          wordTimings: Object.fromEntries(mockState.wordTimings),
+          terminalWords: Array.from(mockState.terminalWords),
+          powerUpsUsed: Array.from(mockState.powerUpsUsed),
+          rareLettersUsed: Array.from(mockState.rareLettersUsed),
+          'ui.letterTracking.usedLetters': Array.from(mockState.ui.letterTracking.usedLetters),
+          'ui.letterTracking.rareLettersUsed': Array.from(mockState.ui.letterTracking.rareLettersUsed),
+        },
         timestamp: Date.now()
       };
       (localStorage.getItem as jest.Mock).mockReturnValue(

@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     gameModeManager.setUserId(userId);
 
     // Get current game state
-    const state = gameModeManager.getGameState();
+  const state = gameModeManager.getGameState() as any;
     if (!state) {
       return NextResponse.json(
         { error: 'No active game to save' },
@@ -51,24 +51,19 @@ export async function POST(req: NextRequest) {
       chain: state.chain,
       startWord: state.startWord,
       targetWord: state.targetWord,
-      score: {
-        total: state.score.total,
-        wordPoints: Object.values(state.score.wordScores).reduce((sum, score) => sum + score.base, 0),
-        chainPoints: Object.values(state.score.wordScores).reduce((sum, score) => sum + score.streak, 0),
-        bonusPoints: state.score.dailyBonus + Object.values(state.score.wordScores).reduce((sum, score) => sum + score.speed + score.length + score.rareLetters, 0),
-        terminalPoints: state.score.terminalBonus
-      },
+      score: state.score,
       stats: state.stats,
       isComplete: state.isComplete,
       startTime: state.startTime,
       lastMoveTime: state.lastMoveTime,
       hintsUsed: state.hintsUsed,
       invalidAttempts: state.invalidAttempts,
-      wordTimings: Array.from(state.wordTimings.entries()).map(([word, time]) => ({ word, time })),
-      terminalWords: Array.from(state.terminalWords),
-      powerUpsUsed: Array.from(state.powerUpsUsed),
-      rareLettersUsed: Array.from(state.rareLettersUsed),
-      dailyPuzzle: state.dailyPuzzle
+      wordTimings: state.wordTimings,
+      terminalWords: state.terminalWords,
+      powerUpsUsed: state.powerUpsUsed,
+      rareLettersUsed: state.rareLettersUsed,
+      dailyPuzzle: state.dailyPuzzle,
+      ui: state.ui
     });
 
     return NextResponse.json({ gameId });

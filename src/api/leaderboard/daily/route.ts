@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic';
 import { z } from 'zod';
 import { adminAuth } from '@/lib/firebase/admin';
 import { leaderboardManager } from '@/lib/game/leaderboard-manager';
@@ -13,7 +14,7 @@ const LEADERBOARD_RATE_LIMIT = {
 // Query parameters schema
 const QuerySchema = z.object({
   mode: z.enum(['daily', 'endless', 'versus']).default('daily'),
-  period: z.enum(['daily', 'weekly', 'monthly', 'allTime']).default('daily')
+  period: z.enum(['daily', 'weekly', 'allTime']).default('daily')
 });
 
 /**

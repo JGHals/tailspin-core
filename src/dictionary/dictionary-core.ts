@@ -77,7 +77,7 @@ export class Dictionary implements DictionaryOperations {
   }
 
   public getHintWords(prefix: string, count: number = 3): string[] {
-    if (!prefix || !VALID_STARTING_COMBOS.includes(prefix.toLowerCase())) {
+    if (!prefix || !VALID_STARTING_COMBOS.includes(prefix.toLowerCase() as any)) {
       return [];
     }
 

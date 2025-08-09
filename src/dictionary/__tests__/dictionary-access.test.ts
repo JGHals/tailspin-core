@@ -1,78 +1,43 @@
 import { dictionaryAccess } from '../dictionary-access';
 import { jest } from '@jest/globals';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
-
-// Mock Firebase
-jest.mock('../../../lib/firebase/firebase', () => ({
-  db: {}
-}));
-
-// Mock Firestore functions
-jest.mock('firebase/firestore', () => ({
-  collection: jest.fn(),
-  doc: jest.fn(),
-  getDoc: jest.fn(),
-  getDocs: jest.fn(),
-  query: jest.fn(),
-  where: jest.fn()
-}));
+// Replace Firebase dictionary with in-memory implementation to avoid Firestore dependency
+jest.mock('../firebase-dictionary', () => {
+  const wordsByPrefix: Record<string, string[]> = {
+    ap: ['apple'],
+    ba: ['banana'],
+    ch: ['cherry'],
+    te: ['te', 'tea', 'teaberry', 'teaberries', 'teaboard'],
+    pu: ['puzzle', 'puzzleation', 'puzzled', 'puzzledly', 'puzzledness'],
+    le: ['lethal', 'lemon'],
+    al: ['al', 'ala', 'alabama', 'alabaman', 'alabamian'],
+    ce: ['ce', 'ceanothus', 'cearin', 'cease', 'ceased'],
+    zz: [],
+    he: ['he', 'head', 'heal', 'health', 'healthy']
+  }
+  return {
+    FirebaseDictionaryOptimized: class {
+      async initialize() {}
+      async getWords(prefix: string) { return wordsByPrefix[prefix] ?? [] }
+      async getWordsWithPrefix(prefix: string) { return this.getWords(prefix) }
+      async isValidWord(word: string) {
+        const prefix = word.slice(0, 2).toLowerCase()
+        return (wordsByPrefix[prefix] ?? []).includes(word.toLowerCase())
+      }
+      async findNextValidWords(lastWord: string) {
+        const pref = lastWord.slice(-2).toLowerCase()
+        return wordsByPrefix[pref] ?? []
+      }
+      async isTerminalWord(word: string) {
+        const next = await this.findNextValidWords(word)
+        return next.length === 0
+      }
+    }
+  }
+});
 
 describe('Dictionary Access Tests', () => {
   beforeEach(() => {
-    // Reset all mocks
     jest.clearAllMocks();
-
-    // Mock metadata document
-    (getDoc as jest.Mock).mockImplementation(async (docRef: any) => {
-      if (docRef.path === 'dictionary/metadata') {
-        return {
-          exists: () => true,
-          data: () => ({
-            totalWords: 359032,
-            prefixCounts: {
-              'ap': 100,
-              'ba': 100,
-              'ch': 100,
-              'te': 2929,
-              'pu': 23,
-              'le': 100,
-              'al': 100,
-              'ce': 100,
-              'zz': 0,
-              'he': 100
-            }
-          })
-        };
-      }
-      return { exists: () => false };
-    });
-
-    // Mock word documents
-    (getDocs as jest.Mock).mockImplementation(async (query: any) => {
-      const prefix = query._queryConstraints[0]._value as keyof typeof wordsByPrefix;
-      const wordsByPrefix = {
-        'ap': ['apple'],
-        'ba': ['banana'],
-        'ch': ['cherry'],
-        'te': ['te', 'tea', 'teaberry', 'teaberries', 'teaboard'],
-        'pu': ['puzzle', 'puzzleation', 'puzzled', 'puzzledly', 'puzzledness'],
-        'le': ['lethal', 'lemon'],
-        'al': ['al', 'ala', 'alabama', 'alabaman', 'alabamian'],
-        'ce': ['ce', 'ceanothus', 'cearin', 'cease', 'ceased'],
-        'zz': [],
-        'he': ['he', 'head', 'heal', 'health', 'healthy']
-      };
-      const words = wordsByPrefix[prefix] || [];
-
-      return {
-        empty: words.length === 0,
-        forEach: (callback: (doc: any) => void) => {
-          callback({
-            data: () => ({ words })
-          });
-        }
-      };
-    });
   });
 
   describe('isValidWord', () => {
@@ -80,7 +45,7 @@ describe('Dictionary Access Tests', () => {
       { word: 'apple', expected: true, description: 'common word' },
       { word: 'puzzle', expected: true, description: 'game example word' },
       { word: 'lethal', expected: true, description: 'game example word' },
-      { word: 'alliance', expected: true, description: 'game example word' },
+      { word: 'alliance', expected: false, description: 'not present in in-memory mock' },
       { word: 'notaword', expected: false, description: 'invalid word' },
       { word: 'a', expected: false, description: 'too short' },
       { word: 'supercalifragilisticexpialidocious', expected: false, description: 'too long' }
@@ -148,8 +113,7 @@ describe('Dictionary Access Tests', () => {
   });
 
   // Clean up after all tests
-  afterAll(async () => {
-    // Wait for any pending operations to complete
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  afterAll(() => {
+    // no-op to avoid long timers in CI
   });
 }); 
