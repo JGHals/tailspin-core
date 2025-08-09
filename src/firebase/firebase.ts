@@ -35,6 +35,10 @@ let auth: any = null;
 let dbInternal: Firestore | null = null;
 let storageInternal: FirebaseStorage | null = null;
 
+// Exported handles declared BEFORE any assignment to avoid TDZ/hoisting issues
+export let db: Firestore | null = null;
+export let storage: FirebaseStorage | null = null;
+
 try {
   if (isBrowser && hasRequiredClientConfig()) {
     app = getApps().length ? getApp() : initializeApp(firebaseConfig);
@@ -64,16 +68,12 @@ try {
   console.error('[Firebase] Initialization error:', err);
 }
 
-// Export actual instances when available; null otherwise
-export let db: Firestore | null = dbInternal;
-export let storage: FirebaseStorage | null = storageInternal;
-
 export function isFirebaseReady(): boolean {
-  return Boolean(dbInternal);
+  return Boolean(db);
 }
 
 export function getDbOptional(): Firestore | null {
-  return dbInternal;
+  return db;
 }
 
 export { app, auth };
