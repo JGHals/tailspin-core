@@ -61,7 +61,7 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
   private async getClientDb(): Promise<Firestore | null> {
     if (typeof window === 'undefined') return null;
     const mod = await import('../firebase/firebase');
-    return (mod.db as Firestore | null) ?? null;
+    return (mod.getDbOptional?.() as Firestore | null) ?? null;
   }
 
   // Helper to read metadata via provider or client db

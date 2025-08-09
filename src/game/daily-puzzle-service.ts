@@ -89,7 +89,7 @@ export class DailyPuzzleService {
       return data;
     }
     const mod = await import('../firebase/firebase');
-    const db = mod.db;
+    const db = mod.getDbOptional?.();
     const puzzleDoc = await getDoc(doc(db!, this.COLLECTION, date));
     
     if (!puzzleDoc.exists()) {
@@ -150,7 +150,7 @@ export class DailyPuzzleService {
       ]);
     } else {
       const mod = await import('../firebase/firebase');
-      const db = mod.db;
+      const db = mod.getDbOptional?.();
       const completedQuery = query(
         collection(db!, this.COMPLETED_COLLECTION),
         where('userId', '==', userId),
@@ -191,7 +191,7 @@ export class DailyPuzzleService {
       });
     } else {
       const mod = await import('../firebase/firebase');
-      const db = mod.db;
+      const db = mod.getDbOptional?.();
       await setDoc(doc(db!, this.COMPLETED_COLLECTION, `${puzzleDate}_${userId}`), {
         userId,
         puzzleDate,
@@ -211,7 +211,7 @@ export class DailyPuzzleService {
       completed = await this.provider.documentExists(this.COMPLETED_COLLECTION, `${puzzleDate}_${userId}`);
     } else {
       const mod = await import('../firebase/firebase');
-      const db = mod.db;
+      const db = mod.getDbOptional?.();
       const docRef = doc(db!, this.COMPLETED_COLLECTION, `${puzzleDate}_${userId}`);
       const docSnap = await getDoc(docRef);
       completed = docSnap.exists();

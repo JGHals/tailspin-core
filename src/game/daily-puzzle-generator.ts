@@ -245,7 +245,7 @@ export class DailyPuzzleGenerator {
         throw new Error('No Firestore provider available for server-side generation');
       }
       const mod = await import('../firebase/firebase');
-      const db = mod.db;
+      const db = mod.getDbOptional?.() ?? null;
       if (!db) throw new Error('Firestore not initialized');
       await setDoc(doc(db, DailyPuzzleGenerator.COLLECTION_PUZZLES, date), puzzle);
     }
@@ -291,7 +291,7 @@ export class DailyPuzzleGenerator {
       return;
     }
     const mod = await import('../firebase/firebase');
-    const db = mod.db;
+    const db = mod.getDbOptional?.() ?? null;
     if (!db) throw new Error('Firestore not initialized');
     const puzzleRef = doc(db, DailyPuzzleGenerator.COLLECTION_PUZZLES, puzzleId);
     const puzzleDoc = await getDoc(puzzleRef);
