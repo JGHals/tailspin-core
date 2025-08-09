@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Lightbulb, Wand2, FlipHorizontal, BracketsIcon, Zap, Undo, Info, Coins } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
-import { powerUpSystem } from "@/game/power-up-system"
+// Engine integration for power-ups is handled via GameProvider/useGame; this component only displays and triggers callbacks
 import { PowerUpInfoModal } from "@/components/power-up-info-modal"
 
 export type PowerUpType = "hint" | "undo" | "warp" | "flip" | "bridge"

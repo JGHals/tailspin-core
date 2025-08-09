@@ -1,3 +1,5 @@
+"use client"
+
 import { createContext, useContext, ReactNode, useState, useCallback } from 'react'
 import { GameManager } from '../game/game-manager'
 import { GameState, PowerUpResult } from '../types/game'
