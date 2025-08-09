@@ -96,6 +96,10 @@ export class DailyPuzzleGenerator {
       const validWords = words.filter(w => 
         w.length >= DailyPuzzleGenerator.MIN_WORD_LENGTH
       );
+      if (process.env.DICTIONARY_DEBUG === '1' || process.env.DICTIONARY_DEBUG === 'true') {
+        // eslint-disable-next-line no-console
+        console.log(`[Generator] prefix=${prefix} total=${words.length} valid=${validWords.length}`);
+      }
       
       for (const word of validWords) {
         const nextWords = await chainValidator.findPossibleNextWords(word);

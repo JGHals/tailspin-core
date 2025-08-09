@@ -41,6 +41,7 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
   private chunkCache: Map<string, WordChunk[]> = new Map();
   private initialized: boolean = false;
   private provider: FirestoreProvider | null;
+  private readonly DEBUG = process.env.DICTIONARY_DEBUG === '1' || process.env.DICTIONARY_DEBUG === 'true';
 
   // Global override usable from server/API to force admin provider
   private static providerOverride: FirestoreProvider | null = null;
@@ -74,6 +75,13 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
       );
       if (!data) throw new Error('Dictionary metadata not found');
       this.metadata = data;
+      if (this.DEBUG) {
+        // eslint-disable-next-line no-console
+        console.log('[Dictionary][Admin] Loaded metadata via provider', {
+          totalWords: data.totalWords,
+          prefixes: Object.keys(data.prefixCounts).length,
+        });
+      }
       return data;
     }
     const database = await this.getClientDb();
@@ -82,6 +90,13 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
     const snap = await getDoc(ref);
     if (!snap.exists()) throw new Error('Dictionary metadata not found');
     this.metadata = snap.data() as DictionaryMetadata;
+    if (this.DEBUG) {
+      const m = this.metadata;
+      console.log('[Dictionary][Client] Loaded metadata', {
+        totalWords: m.totalWords,
+        prefixes: Object.keys(m.prefixCounts).length,
+      });
+    }
     return this.metadata;
   }
 
@@ -105,6 +120,10 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
       ];
       const docs = await provider.queryCollection<WordChunk>(FIREBASE_CONFIG.COLLECTIONS.PREFIXES, constraints);
       wordChunks = docs;
+      if (this.DEBUG) {
+        const total = wordChunks.reduce((s, c) => s + (c.words?.length || 0), 0);
+        console.log(`[Dictionary][Admin] getWords(${prefix}) chunks=${wordChunks.length} words=${total}`);
+      }
     } else {
       const database = await this.getClientDb();
       if (!database) return [];
@@ -114,6 +133,10 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
       chunks.forEach(d => {
         wordChunks.push(d.data() as WordChunk);
       });
+      if (this.DEBUG) {
+        const total = wordChunks.reduce((s, c) => s + (c.words?.length || 0), 0);
+        console.log(`[Dictionary][Client] getWords(${prefix}) chunks=${wordChunks.length} words=${total}`);
+      }
     }
 
     this.chunkCache.set(prefix, wordChunks);
@@ -202,9 +225,13 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
         { type: 'where', field: 'maxLength', operator: '>=', value: minLength },
       ];
       const docs = await provider.queryCollection<WordChunk>(FIREBASE_CONFIG.COLLECTIONS.PREFIXES, constraints);
-      return docs
+      const words = docs
         .flatMap(c => c.words)
         .filter(w => w.length >= minLength && w.length <= maxLength);
+      if (this.DEBUG) {
+        console.log(`[Dictionary][Admin] getWordsByLength(${prefix}, ${minLength}-${maxLength}) words=${words.length}`);
+      }
+      return words;
     } else {
       const database = await this.getClientDb();
       if (!database) return [];
@@ -223,6 +250,9 @@ export class FirebaseDictionaryOptimized implements DictionaryAccess, Dictionary
         const chunk = d.data() as WordChunk;
         words.push(...chunk.words.filter(w => w.length >= minLength && w.length <= maxLength));
       });
+      if (this.DEBUG) {
+        console.log(`[Dictionary][Client] getWordsByLength(${prefix}, ${minLength}-${maxLength}) words=${words.length}`);
+      }
       return words;
     }
   }
