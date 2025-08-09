@@ -40,6 +40,9 @@ try {
     app = getApps().length ? getApp() : initializeApp(firebaseConfig);
     dbInternal = getFirestore(app);
     storageInternal = getStorage(app);
+    // update exported references to point at the initialized instances
+    db = dbInternal;
+    storage = storageInternal;
     if (isBrowser) {
       auth = getAuth(app);
       setPersistence(auth, browserLocalPersistence).catch((error) => {
@@ -63,28 +66,9 @@ try {
   console.error('[Firebase] Initialization error:', err);
 }
 
-// Proxies provide a stable, typed export that throws if used before initialization
-export const db = new Proxy({} as Firestore, {
-  get(_target, prop, receiver) {
-    if (!dbInternal) {
-      throw new Error('[Firebase] Firestore not initialized');
-    }
-    // @ts-ignore
-    const value = dbInternal[prop as keyof Firestore];
-    return typeof value === 'function' ? (value as Function).bind(dbInternal) : value;
-  }
-}) as Firestore;
-
-export const storage = new Proxy({} as FirebaseStorage, {
-  get(_target, prop, receiver) {
-    if (!storageInternal) {
-      throw new Error('[Firebase] Storage not initialized');
-    }
-    // @ts-ignore
-    const value = storageInternal[prop as keyof FirebaseStorage];
-    return typeof value === 'function' ? (value as Function).bind(storageInternal) : value;
-  }
-}) as FirebaseStorage;
+// Export actual instances when available; null otherwise
+export let db: Firestore | null = dbInternal;
+export let storage: FirebaseStorage | null = storageInternal;
 
 export function isFirebaseReady(): boolean {
   return Boolean(dbInternal);
