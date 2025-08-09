@@ -1,4 +1,4 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
@@ -27,28 +27,26 @@ function hasRequiredClientConfig(): boolean {
   );
 }
 
-// Initialize Firebase
+// Initialize Firebase (client-only)
 const isBrowser = typeof window !== 'undefined';
 
-let app: ReturnType<typeof getApp> | null = null;
+let app: FirebaseApp | null = null;
 let auth: any = null;
 let dbInternal: Firestore | null = null;
 let storageInternal: FirebaseStorage | null = null;
 
 try {
-  if (hasRequiredClientConfig()) {
+  if (isBrowser && hasRequiredClientConfig()) {
     app = getApps().length ? getApp() : initializeApp(firebaseConfig);
     dbInternal = getFirestore(app);
     storageInternal = getStorage(app);
     // update exported references to point at the initialized instances
     db = dbInternal;
     storage = storageInternal;
-    if (isBrowser) {
-      auth = getAuth(app);
-      setPersistence(auth, browserLocalPersistence).catch((error) => {
-        console.error('Error setting auth persistence:', error);
-      });
-    }
+    auth = getAuth(app);
+    setPersistence(auth, browserLocalPersistence).catch((error) => {
+      console.error('Error setting auth persistence:', error);
+    });
   } else {
     // Log diagnostics once in dev
     if (process.env.NODE_ENV !== 'production') {

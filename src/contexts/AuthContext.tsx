@@ -84,7 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Handle auth state changes
   useEffect(() => {
-    const unsubscribe = auth?.onAuthStateChanged?.(async (firebaseUser: User | null) => {
+    let unsubscribe: (() => void) | undefined;
+    unsubscribe = auth?.onAuthStateChanged?.(async (firebaseUser: User | null) => {
       try {
         if (firebaseUser) {
           // Load or create user profile
@@ -137,7 +138,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Cleanup subscription
-    return () => unsubscribe();
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        try { unsubscribe(); } catch {}
+      }
+    };
   }, []);
 
   const signInWithGoogle = async () => {
