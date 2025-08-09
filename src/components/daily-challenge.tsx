@@ -14,6 +14,7 @@ import { DailyChallengeComplete } from "@/components/daily-challenge-complete"
 import { validateWord, checkWordConnection } from "@/validation/word-validation"
 import { GameModeManagerImpl } from "@/game/game-mode-manager"
 import { getDbOptional } from "@/firebase/firebase"
+import { collection } from "firebase/firestore"
 import { AlertCircle, Trophy } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -29,6 +30,8 @@ export function DailyChallenge() {
   const [startTime, setStartTime] = useState<number | null>(null)
   const [endTime, setEndTime] = useState<number | null>(null)
   const [tokensEarned, setTokensEarned] = useState(0)
+  const [firebaseReady, setFirebaseReady] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   // Terminal word tracking
   const [discoveredTerminals, setDiscoveredTerminals] = useState<string[]>([])
@@ -42,26 +45,75 @@ export function DailyChallenge() {
   const [showHintModal, setShowHintModal] = useState(false)
   const [showCompletionModal, setShowCompletionModal] = useState(false)
 
+  // Debug logging for Firebase readiness
   useEffect(() => {
-    // Initialize using engine daily puzzle service
-    const init = async () => {
-      if (!getDbOptional()) {
-        console.warn('[DailyChallenge] Firebase not ready; skipping init for now')
-        return
+    // eslint-disable-next-line no-console
+    console.log('=== Daily Challenge Debug ===')
+    const db = getDbOptional()
+    // eslint-disable-next-line no-console
+    console.log('Firebase db:', db)
+    // eslint-disable-next-line no-console
+    console.log('DB type:', typeof db)
+    // eslint-disable-next-line no-console
+    console.log('Window defined:', typeof window !== 'undefined')
+    if (db) {
+      // eslint-disable-next-line no-console
+      console.log('DB appears ready, attempting collection access...')
+      try {
+        const testRef = collection(db, 'test')
+        // eslint-disable-next-line no-console
+        console.log('Collection creation successful:', Boolean(testRef))
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('Collection creation failed:', e)
       }
-      const manager = new GameModeManagerImpl('daily')
-      if (user) manager.setUserId(user.id)
-      const puzzle = await manager.getCurrentDailyPuzzle()
-      await manager.startGame({ dailyPuzzle: puzzle })
-      const state = manager.getGameState()
-      setWords([...state.chain])
-      setTargetWord(puzzle.targetWord)
-      setMaxMoves(puzzle.parMoves)
-      setStartTime(Date.now())
-      ;(window as any).__dailyManager = manager
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('DB is null/undefined - Firebase not ready')
     }
-    init().catch(console.error)
-  }, [user])
+  }, [])
+
+  // Poll until Firebase is ready
+  useEffect(() => {
+    let cancelled = false
+    const check = () => {
+      if (cancelled) return
+      const db = getDbOptional()
+      if (typeof window !== 'undefined' && db) {
+        setFirebaseReady(true)
+      } else {
+        setTimeout(check, 150)
+      }
+    }
+    check()
+    return () => { cancelled = true }
+  }, [])
+
+  // Load daily puzzle only when Firebase is ready
+  useEffect(() => {
+    const init = async () => {
+      if (!firebaseReady) return
+      try {
+        setLoading(true)
+        const manager = new GameModeManagerImpl('daily')
+        if (user) manager.setUserId(user.id)
+        const puzzle = await manager.getCurrentDailyPuzzle()
+        await manager.startGame({ dailyPuzzle: puzzle })
+        const state = manager.getGameState()
+        setWords([...state.chain])
+        setTargetWord(puzzle.targetWord)
+        setMaxMoves(puzzle.parMoves)
+        setStartTime(Date.now())
+        ;(window as any).__dailyManager = manager
+      } catch (e) {
+        console.error('Failed to init daily challenge:', e)
+        setError('Failed to load daily challenge')
+      } finally {
+        setLoading(false)
+      }
+    }
+    void init()
+  }, [firebaseReady, user])
 
   const handleWordSubmit = async (word: string) => {
     setError(null)
@@ -212,6 +264,27 @@ export function DailyChallenge() {
       <div className="text-2xl sm:text-3xl font-bold">
         <span className="text-green-600 dark:text-green-400">{targetWord.slice(0, 2)}</span>
         <span>{targetWord.slice(2)}</span>
+      </div>
+    )
+  }
+
+  if (!firebaseReady) {
+    return (
+      <div className="p-4">
+        <div className="text-center">
+          <div className="text-lg">Loading Daily Challenge...</div>
+          <div className="text-sm text-muted-foreground">Initializing Firebase...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="p-4">
+        <div className="text-center">
+          <div className="text-lg">Loading Today's Puzzle...</div>
+        </div>
       </div>
     )
   }
