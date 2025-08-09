@@ -50,8 +50,10 @@ export const FIREBASE_CONFIG = {
   METADATA_DOC: 'metadata',
   COLLECTIONS: {
     DICTIONARY: 'dictionary',
-    PREFIXES: 'prefixes',
-    METADATA: 'metadata'
+    // The chunked dictionary lives in a single top-level collection named 'dictionary'
+    PREFIXES: 'dictionary',
+    // The metadata document also lives in the same 'dictionary' collection by id 'metadata'
+    METADATA: 'dictionary'
   },
   INDEXES: {
     PREFIX_LENGTH: 'prefix_length_idx',

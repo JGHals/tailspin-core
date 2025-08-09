@@ -18,9 +18,24 @@ import { setDictionaryProvider } from '@/dictionary/dictionary-access';
 function parseArgs() {
   const args = process.argv.slice(2);
   const params: Record<string, string | boolean> = {};
-  for (const arg of args) {
-    const [k, v] = arg.startsWith('--') ? arg.substring(2).split('=') : [arg, 'true'];
-    params[k] = v ?? true;
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg.startsWith('--')) {
+      const without = arg.substring(2);
+      if (without.includes('=')) {
+        const [k, v] = without.split('=');
+        params[k] = v;
+      } else {
+        const k = without;
+        const next = args[i + 1];
+        if (next && !next.startsWith('--')) {
+          params[k] = next;
+          i++;
+        } else {
+          params[k] = 'true';
+        }
+      }
+    }
   }
   return params;
 }
